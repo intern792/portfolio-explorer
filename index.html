@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCF Portfolio Explorer</title>
+<link rel="icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTPrcC3XVIEXSnopTKHqZnfB22DDHiE2LXkVLCRprPAog&s=10">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-brand">
+    <img class="topnav-logo" alt="VCF logo"
+         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTPrcC3XVIEXSnopTKHqZnfB22DDHiE2LXkVLCRprPAog&s=10">
+    <span class="topnav-title">Portfolio Explorer</span>
+  </div>
+  <div class="topnav-status" id="db-status">
+    <span class="status-dot loading"></span>
+    <span id="db-status-text">Loading database&hellip;</span>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="section-label">Search</div>
+    <input type="search" id="filter-search" class="input" placeholder="Company, description, sector&hellip;" autocomplete="off">
+  </div>
+
+  <div class="sidebar-section">
+    <div class="section-label">Filters</div>
+
+    <label class="field">
+      <span class="field-label">Firm</span>
+      <select id="filter-firm" class="input"><option value="">All firms</option></select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Firm type</span>
+      <select id="filter-list-kind" class="input">
+        <option value="">All</option>
+        <option value="big_vc">Big VC</option>
+        <option value="coinvestor">Coinvestor</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Sector contains</span>
+      <input type="text" id="filter-sector" class="input" placeholder="e.g. fintech" autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span class="field-label">Status contains</span>
+      <input type="text" id="filter-status" class="input" placeholder="e.g. acquired, IPO" autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span class="field-label">Location contains</span>
+      <input type="text" id="filter-location" class="input" placeholder="e.g. Chicago" autocomplete="off">
+    </label>
+
+    <button id="clear-filters" class="btn btn-secondary">Clear filters</button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="db-chip">
+      <span class="status-dot ok"></span>
+      <span id="db-chip-text">portfolio.db</span>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <section class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <span class="material-symbols-outlined">rocket_launch</span>
+        <h2>Companies</h2>
+        <span class="result-count" id="result-count"></span>
+      </div>
+      <button id="export-csv" class="btn btn-ghost">
+        <span class="material-symbols-outlined">download</span> Export CSV
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead id="results-head"></thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
+    <div class="card-footer">
+      <span id="page-info"></span>
+      <div class="pager">
+        <button id="page-prev" class="btn btn-ghost" disabled>
+          <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <button id="page-next" class="btn btn-ghost" disabled>
+          <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Detail overlay -->
+<div class="overlay hidden" id="detail-overlay">
+  <div class="detail-panel" role="dialog" aria-modal="true">
+    <div class="detail-header">
+      <div>
+        <h3 id="detail-name"></h3>
+        <div class="detail-sub" id="detail-firm"></div>
+      </div>
+      <button class="btn btn-ghost" id="detail-close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="detail-body" id="detail-body"></div>
+    <div class="detail-enrichment" id="detail-enrichment"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.min.js"></script>
+<script src="js/enrichment.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
