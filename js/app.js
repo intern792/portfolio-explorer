@@ -375,6 +375,8 @@ function bindControls() {
   $("page-next").addEventListener("click", () => { state.page += 1; runQuery(); });
   $("export-csv").addEventListener("click", exportCsv);
 
+  $("logout-btn").addEventListener("click", () => Auth.logout());
+
   $("detail-close").addEventListener("click", closeDetail);
   $("detail-overlay").addEventListener("click", (e) => {
     if (e.target === $("detail-overlay")) closeDetail();
@@ -384,4 +386,4 @@ function bindControls() {
   });
 }
 
-boot();
+Auth.init(boot);

@@ -246,6 +246,31 @@ td.cell-year { font-family: ui-monospace, monospace; font-size: 13px; }
 }
 .detail-enrichment p { margin: 0; font-size: 13px; color: var(--outline); }
 
+/* ---- Login gate ---- */
+body.locked .sidebar,
+body.locked .main,
+body.locked #logout-btn { visibility: hidden; }
+.login-overlay {
+  justify-content: center;
+  align-items: center;
+  background: var(--surface);
+}
+.login-card {
+  width: min(360px, calc(100% - 32px));
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  padding: 32px;
+  display: flex; flex-direction: column; gap: 14px;
+  text-align: center;
+}
+.login-card h3 { margin: 0; font-size: 20px; font-weight: 600; }
+.login-logo { height: 48px; width: 48px; object-fit: contain; margin: 0 auto; border-radius: var(--radius-sm); }
+.login-sub { margin: 0; font-size: 13px; color: var(--on-surface-variant); }
+.login-card .field { text-align: left; }
+.login-error { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--error); }
+
 @media (max-width: 800px) {
   .sidebar { position: static; width: auto; height: auto; border-right: none; border-bottom: 1px solid var(--outline-variant); }
   .main { margin-left: 0; padding: 16px; }

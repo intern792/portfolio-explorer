@@ -20,8 +20,31 @@
   <div class="topnav-status" id="db-status">
     <span class="status-dot loading"></span>
     <span id="db-status-text">Loading database&hellip;</span>
+    <button class="btn btn-ghost" id="logout-btn" title="Sign out">
+      <span class="material-symbols-outlined">logout</span>
+    </button>
   </div>
 </header>
+
+<!-- Login gate (client-side only — deters casual visitors, not real security) -->
+<div class="overlay login-overlay" id="login-overlay">
+  <form class="login-card" id="login-form" autocomplete="off">
+    <img class="login-logo" alt="VCF logo"
+         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTPrcC3XVIEXSnopTKHqZnfB22DDHiE2LXkVLCRprPAog&s=10">
+    <h3>Portfolio Explorer</h3>
+    <p class="login-sub">Sign in to continue</p>
+    <label class="field">
+      <span class="field-label">Username</span>
+      <input type="text" id="login-username" class="input" autocomplete="username" required autofocus>
+    </label>
+    <label class="field">
+      <span class="field-label">Password</span>
+      <input type="password" id="login-password" class="input" autocomplete="current-password" required>
+    </label>
+    <div class="login-error" id="login-error"></div>
+    <button type="submit" class="btn btn-primary">Sign in</button>
+  </form>
+</div>
 
 <aside class="sidebar">
   <div class="sidebar-section">
@@ -122,6 +145,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.min.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/enrichment.js"></script>
 <script src="js/app.js"></script>
 </body>

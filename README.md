@@ -16,6 +16,14 @@ for the full record. Hosted on GitHub Pages.
   and rebuilding the view surfaces it in the UI with no code change. Firm-specific
   fields live in `extra_json` and are unpacked in the detail panel.
 
+## Login gate (soft)
+
+The app sits behind a simple username/password screen (`js/auth.js`, hashes only in
+source, session kept in `sessionStorage`). **This is client-side only** — it deters
+casual visitors but is not real security: the repo and `data/portfolio.db` remain
+publicly fetchable. If the data ever needs actual protection, move to a host with
+server-side auth (Cloudflare Access, Vercel password protection, etc.).
+
 ## Updating the data
 
 1. In the main VCF repo, re-run the extraction and rebuild the DB:
