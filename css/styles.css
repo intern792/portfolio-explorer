@@ -183,6 +183,7 @@ td.cell-year { font-family: ui-monospace, monospace; font-size: 13px; }
   white-space: nowrap;
 }
 .chip.kind-coinvestor { background: var(--secondary-container); color: var(--on-secondary-container); }
+.chip.vc-count { background: #e5f4ea; color: #176b3a; }
 .empty-row td { text-align: center; color: var(--outline); padding: 32px; cursor: default; }
 
 .card-footer {
@@ -218,6 +219,23 @@ td.cell-year { font-family: ui-monospace, monospace; font-size: 13px; }
 .detail-header h3 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em; }
 .detail-sub { margin-top: 4px; font-size: 13px; color: var(--on-surface-variant); }
 .detail-body { padding: 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+.investment-heading {
+  margin: 8px 0 0;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--on-surface-variant);
+}
+.investment-card {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.investment-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--surface-container);
+}
+.investment-card-header strong { font-size: 15px; }
 .detail-field { display: flex; flex-direction: column; gap: 2px; }
 .detail-field-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;

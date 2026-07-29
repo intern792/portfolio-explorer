@@ -9,12 +9,12 @@ for the full record. Hosted on GitHub Pages.
 - The entire SQLite file (~3.4 MB) is fetched by the browser and queried in-page with
   [sql.js](https://github.com/sql-js/sql.js) (SQLite compiled to WebAssembly, loaded
   from the cdnjs CDN). No server, no API.
-- All queries go through the `portfolio_all` view (one row per company-per-firm,
-  joined to the `firms` table). See the schema doc in the main VCF repo:
+- The main table queries `company_summary` (one row per canonical company). The
+  detail drawer queries `company_records`, preserving every original company-per-firm
+  record and its firm-specific facts. See the schema doc in the main VCF repo:
   `docs/portfolio_db_schema.md`.
-- Table columns are discovered from the view at runtime — adding a column to the DB
-  and rebuilding the view surfaces it in the UI with no code change. Firm-specific
-  fields live in `extra_json` and are unpacked in the detail panel.
+- Firm-specific fields remain in `extra_json` and are unpacked inside each VC's
+  source-record card in the detail panel.
 
 ## Login gate (soft)
 

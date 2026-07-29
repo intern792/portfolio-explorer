@@ -1,10 +1,9 @@
 /**
  * VCF Portfolio Explorer — static, client-side SQLite browser.
  *
- * Loads data/portfolio.db with sql.js and queries the `portfolio_all` view.
- * Table columns are discovered from the view at runtime, so adding a column
- * to the database (and rebuilding the view) surfaces it here with no code
- * change; columns listed in HIDDEN_IN_TABLE stay detail-panel-only.
+ * Loads data/portfolio.db with sql.js and queries one row per canonical company
+ * from `company_summary`. The detail panel reads the lossless source records
+ * from `company_records`, so each VC's original facts remain visible.
  */
 "use strict";
 
@@ -13,20 +12,13 @@ const SQL_WASM_CDN = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/";
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 
-/** Columns kept out of the results table (still shown in the detail panel). */
-const HIDDEN_IN_TABLE = new Set(["firm_id", "url", "description", "extra_json"]);
-
 /** Friendlier header names; anything unlisted falls back to the raw column name. */
 const COLUMN_LABELS = {
   name: "Company",
-  firm_name: "Firm",
-  list_kind: "Firm type",
-  sector: "Sector",
-  stage: "Stage",
-  status: "Status",
-  investment_year: "Year",
-  location: "Location",
-  founded_year: "Founded",
+  vc_count: "VCs",
+  firm_names: "Backed by",
+  sectors: "Sectors",
+  locations: "Locations",
   url: "Website",
   description: "Description",
 };
@@ -35,8 +27,8 @@ const LIST_KIND_LABELS = { big_vc: "Big VC", coinvestor: "Coinvestor" };
 
 const state = {
   db: null,
-  columns: [],        // all portfolio_all columns, in view order
-  tableColumns: [],   // subset rendered in the results table
+  columns: [],
+  tableColumns: ["name", "vc_count", "firm_names", "sectors", "locations"],
   sortColumn: "name",
   sortDir: "ASC",
   page: 0,
@@ -73,24 +65,23 @@ function setDbStatus(kind, message) {
   const text = $("db-status-text");
   dot.className = "status-dot " + (kind === "ok" ? "ok" : kind === "error" ? "error" : "loading");
   if (kind === "ok") {
-    const total = queryScalar("SELECT COUNT(*) FROM portfolio_all");
+    const total = queryScalar("SELECT COUNT(*) FROM company_summary");
+    const investments = queryScalar("SELECT COUNT(*) FROM investments");
     const firms = queryScalar("SELECT COUNT(*) FROM firms");
-    text.textContent = `${total.toLocaleString()} companies · ${firms} firms`;
-    $("db-chip-text").textContent = `portfolio.db · ${total.toLocaleString()} rows`;
+    text.textContent = `${total.toLocaleString()} companies · ${investments.toLocaleString()} investments · ${firms} firms`;
+    $("db-chip-text").textContent = `portfolio.db · ${total.toLocaleString()} merged companies`;
   } else if (kind === "error") {
     text.textContent = `Could not load database: ${message}`;
   }
 }
 
 function discoverColumns() {
-  const res = state.db.exec("PRAGMA table_info(portfolio_all)");
+  const res = state.db.exec("PRAGMA table_info(company_summary)");
   state.columns = res[0].values.map((row) => row[1]);
-  const rest = state.columns.filter((c) => c !== "name" && !HIDDEN_IN_TABLE.has(c));
-  state.tableColumns = ["name", ...rest];
 }
 
 function populateFirmDropdown() {
-  const res = state.db.exec("SELECT DISTINCT firm_name FROM portfolio_all ORDER BY firm_name");
+  const res = state.db.exec("SELECT name FROM firms ORDER BY name");
   const select = $("filter-firm");
   for (const [firm] of res[0].values) {
     const opt = document.createElement("option");
@@ -111,29 +102,7 @@ function queryScalar(sql, params = []) {
   return value;
 }
 
-function buildWhere() {
-  const clauses = [];
-  const params = [];
-  const f = state.filters;
-  if (f.search) {
-    clauses.push("(name LIKE ? OR description LIKE ? OR sector LIKE ? OR location LIKE ?)");
-    const like = `%${f.search}%`;
-    params.push(like, like, like, like);
-  }
-  if (f.firm) { clauses.push("firm_name = ?"); params.push(f.firm); }
-  if (f.listKind) { clauses.push("list_kind = ?"); params.push(f.listKind); }
-  if (f.sector) { clauses.push("sector LIKE ?"); params.push(`%${f.sector}%`); }
-  if (f.status) { clauses.push("status LIKE ?"); params.push(`%${f.status}%`); }
-  if (f.location) { clauses.push("location LIKE ?"); params.push(`%${f.location}%`); }
-  return { where: clauses.length ? "WHERE " + clauses.join(" AND ") : "", params };
-}
-
-function fetchRows(limit, offset) {
-  const { where, params } = buildWhere();
-  const orderCol = state.columns.includes(state.sortColumn) ? state.sortColumn : "name";
-  const sql = `SELECT * FROM portfolio_all ${where}
-               ORDER BY "${orderCol}" IS NULL, "${orderCol}" COLLATE NOCASE ${state.sortDir}
-               ${limit != null ? `LIMIT ${limit} OFFSET ${offset}` : ""}`;
+function queryRows(sql, params = []) {
   const stmt = state.db.prepare(sql);
   stmt.bind(params);
   const rows = [];
@@ -142,9 +111,42 @@ function fetchRows(limit, offset) {
   return rows;
 }
 
+function buildWhere() {
+  const clauses = [];
+  const params = [];
+  const f = state.filters;
+  if (f.search) {
+    clauses.push(`(s.name LIKE ? OR s.domain LIKE ? OR EXISTS (
+      SELECT 1 FROM company_records r WHERE r.company_id = s.company_id
+      AND (r.description LIKE ? OR r.sector LIKE ? OR r.location LIKE ?)
+    ))`);
+    const like = `%${f.search}%`;
+    params.push(like, like, like, like, like);
+  }
+  const sourceFilter = (column, operator, value) => {
+    clauses.push(`EXISTS (SELECT 1 FROM company_records r WHERE r.company_id = s.company_id AND r.${column} ${operator} ?)`);
+    params.push(value);
+  };
+  if (f.firm) sourceFilter("firm_name", "=", f.firm);
+  if (f.listKind) sourceFilter("list_kind", "=", f.listKind);
+  if (f.sector) sourceFilter("sector", "LIKE", `%${f.sector}%`);
+  if (f.status) sourceFilter("status", "LIKE", `%${f.status}%`);
+  if (f.location) sourceFilter("location", "LIKE", `%${f.location}%`);
+  return { where: clauses.length ? "WHERE " + clauses.join(" AND ") : "", params };
+}
+
+function fetchRows(limit, offset) {
+  const { where, params } = buildWhere();
+  const orderCol = state.columns.includes(state.sortColumn) ? state.sortColumn : "name";
+  const sql = `SELECT s.* FROM company_summary s ${where}
+               ORDER BY "${orderCol}" IS NULL, "${orderCol}" COLLATE NOCASE ${state.sortDir}
+               ${limit != null ? `LIMIT ${limit} OFFSET ${offset}` : ""}`;
+  return queryRows(sql, params);
+}
+
 function runQuery() {
   const { where, params } = buildWhere();
-  state.totalRows = queryScalar(`SELECT COUNT(*) FROM portfolio_all ${where}`, params);
+  state.totalRows = queryScalar(`SELECT COUNT(*) FROM company_summary s ${where}`, params);
   const maxPage = Math.max(0, Math.ceil(state.totalRows / PAGE_SIZE) - 1);
   state.page = Math.min(state.page, maxPage);
   renderTable(fetchRows(PAGE_SIZE, state.page * PAGE_SIZE));
@@ -200,14 +202,11 @@ function renderTable(rows) {
       if (col === "name") {
         td.className = "cell-name";
         td.textContent = value ?? "";
-      } else if (col === "list_kind") {
+      } else if (col === "vc_count") {
         const chip = document.createElement("span");
-        chip.className = "chip kind-" + (value || "");
-        chip.textContent = LIST_KIND_LABELS[value] || value || "";
+        chip.className = "chip vc-count";
+        chip.textContent = `${value} ${value === 1 ? "VC" : "VCs"}`;
         td.appendChild(chip);
-      } else if (col === "investment_year" || col === "founded_year") {
-        td.className = "cell-year";
-        td.textContent = value ?? "";
       } else {
         td.textContent = value ?? "";
       }
@@ -259,45 +258,60 @@ function linkNode(url) {
 
 function openDetail(row) {
   $("detail-name").textContent = row.name || "—";
-  const kind = LIST_KIND_LABELS[row.list_kind] || row.list_kind || "";
-  $("detail-firm").textContent = `In the portfolio of ${row.firm_name}${kind ? ` (${kind})` : ""}`;
+  $("detail-firm").textContent = `Backed by ${row.vc_count} ${row.vc_count === 1 ? "VC" : "VCs"} · ${row.source_count} source ${row.source_count === 1 ? "record" : "records"}`;
 
   const body = $("detail-body");
   body.replaceChildren();
 
   body.appendChild(detailField("Website", linkNode(row.url)));
-  body.appendChild(detailField("Description", textNode(row.description)));
+  const records = queryRows(
+    "SELECT * FROM company_records WHERE company_id = ? ORDER BY firm_name COLLATE NOCASE",
+    [row.company_id]
+  );
+  const heading = document.createElement("h4");
+  heading.className = "investment-heading";
+  heading.textContent = "VC portfolio records";
+  body.appendChild(heading);
+  for (const record of records) body.appendChild(investmentCard(record));
 
-  // All remaining shared columns, dynamically — new DB columns show up here automatically.
-  const skip = new Set(["name", "url", "description", "extra_json", "firm_id", "firm_name", "list_kind"]);
-  for (const col of state.columns) {
-    if (skip.has(col)) continue;
-    body.appendChild(detailField(label(col), textNode(row[col])));
-  }
-
-  // Firm-specific extras from extra_json.
-  if (row.extra_json) {
-    let extra = null;
-    try { extra = JSON.parse(row.extra_json); } catch { /* leave null */ }
-    if (extra && Object.keys(extra).length > 0) {
-      const box = document.createElement("div");
-      box.className = "detail-extra";
-      const heading = document.createElement("div");
-      heading.className = "detail-field-label";
-      heading.textContent = `More from ${row.firm_name}`;
-      box.appendChild(heading);
-      for (const [key, value] of Object.entries(extra)) {
-        const rendered = Array.isArray(value) ? value.join(", ")
-          : typeof value === "object" && value !== null ? JSON.stringify(value)
-          : value;
-        box.appendChild(detailField(key.replace(/_/g, " "), textNode(rendered)));
-      }
-      body.appendChild(box);
-    }
-  }
-
-  Enrichment.renderSection($("detail-enrichment"), row);
+  Enrichment.renderSection($("detail-enrichment"), { ...records[0], ...row });
   $("detail-overlay").classList.remove("hidden");
+}
+
+function investmentCard(record) {
+  const card = document.createElement("section");
+  card.className = "investment-card";
+  const header = document.createElement("div");
+  header.className = "investment-card-header";
+  const firm = document.createElement("strong");
+  firm.textContent = record.firm_name;
+  const kind = document.createElement("span");
+  kind.className = "chip kind-" + (record.list_kind || "");
+  kind.textContent = LIST_KIND_LABELS[record.list_kind] || record.list_kind || "";
+  header.append(firm, kind);
+  card.appendChild(header);
+
+  const fields = [
+    ["Source name", record.name], ["Description", record.description],
+    ["Sector", record.sector], ["Stage", record.stage], ["Status", record.status],
+    ["Investment year", record.investment_year], ["Location", record.location],
+    ["Founded", record.founded_year],
+  ];
+  if (record.url) fields.splice(1, 0, ["Source URL", record.url]);
+  for (const [fieldLabel, value] of fields) {
+    if (value != null && value !== "") card.appendChild(detailField(fieldLabel, textNode(value)));
+  }
+  if (record.extra_json) {
+    try {
+      const extra = JSON.parse(record.extra_json);
+      for (const [key, value] of Object.entries(extra || {})) {
+        const rendered = Array.isArray(value) ? value.join(", ")
+          : typeof value === "object" && value !== null ? JSON.stringify(value) : value;
+        card.appendChild(detailField(key.replace(/_/g, " "), textNode(rendered)));
+      }
+    } catch { /* malformed firm-specific metadata stays hidden */ }
+  }
+  return card;
 }
 
 function closeDetail() {
